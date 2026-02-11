@@ -9,10 +9,12 @@ import getpass
 from PIL import ImageTk, Image
 import csv
 import pyautogui
+import os
 import tkcap
 import img2pdf
 import numpy as np
 import time
+from datetime import datetime
 
 import cv2 # Ref: REFACTOR_SUMMARY.md - Punto 1
 import tensorflow as tf # Ref: REFACTOR_SUMMARY.md - Punto 1
@@ -207,8 +209,6 @@ class App:
 
         self.array = None
 
-        self.reportID = 0
-
         self.root.mainloop()
 
     def load_img_file(self):
@@ -249,20 +249,35 @@ class App:
     def save_results_csv(self):
         with open("historial.csv", "a") as csvfile:
             w = csv.writer(csvfile, delimiter="-")
+            fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             w.writerow(
-                [self.text1.get(), self.label, "{:.2f}".format(self.proba) + "%"]
+                [fecha_hora, self.text1.get(), self.label, "{:.2f}".format(self.proba) + "%"]
             )
             showinfo(title="Guardar", message="Los datos se guardaron con éxito.")
 
     def create_pdf(self):
+        cedula = self.text1.get().strip()
+
+        if not cedula:
+            showinfo(title="Error", message="Por favor, ingresa la cédula del paciente.")
+            return
+        
+        base_filename = f"Reporte_{cedula}"
+        jpg_filename = f"{base_filename}.jpg"
+        pdf_filename = f"{base_filename}.pdf"
+
+        counter = 2
+        while os.path.exists(jpg_filename) or os.path.exists(pdf_filename):
+            jpg_filename = f"{base_filename}_{counter}.jpg"
+            pdf_filename = f"{base_filename}_{counter}.pdf"
+            counter += 1
+
+
         cap = tkcap.CAP(self.root)
-        ID = "Reporte" + str(self.reportID) + ".jpg"
-        img = cap.capture(ID)
-        img = Image.open(ID)
+        img = cap.capture(jpg_filename)
+        img = Image.open(jpg_filename)
         img = img.convert("RGB")
-        pdf_path = r"Reporte" + str(self.reportID) + ".pdf"
-        img.save(pdf_path)
-        self.reportID += 1
+        img.save(pdf_filename)
         showinfo(title="PDF", message="El PDF fue generado con éxito.")
 
     def delete(self):

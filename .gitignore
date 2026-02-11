@@ -55,3 +55,6 @@ historial.csv
 # Modelos grandes
 *.hdf5
 *.h5
+
+#Archivos zip
+*.zip
