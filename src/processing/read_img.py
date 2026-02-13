@@ -8,6 +8,7 @@ import numpy as np
 import pydicom
 from PIL import Image
 
+
 def read_dicom_file(path: str) -> Tuple[np.ndarray, Image.Image]:
     """
     Leer archivo de imagen médica DICOM.
@@ -121,7 +122,8 @@ def read_jpg_file(path: str) -> Tuple[np.ndarray, Image.Image]:
 
     except Exception as e:
         raise ValueError(f"Error reading image: {e}")
-    
+
+
 def read_image(path: str) -> Tuple[np.ndarray, Image.Image]:
     """
     Leer archivo de imagen con detección automática de formato.
@@ -163,10 +165,10 @@ def read_image(path: str) -> Tuple[np.ndarray, Image.Image]:
     - Imágenes: .jpg, .jpeg, .png
     """
     path_lower = path.lower()
-    
-    if path_lower.endswith('.dcm'):
+
+    if path_lower.endswith(".dcm"):
         return read_dicom_file(path)
-    elif path_lower.endswith(('.jpg', '.jpeg', '.png')):
+    elif path_lower.endswith((".jpg", ".jpeg", ".png")):
         return read_jpg_file(path)
     else:
         raise ValueError(

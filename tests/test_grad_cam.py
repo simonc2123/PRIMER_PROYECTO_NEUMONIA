@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import tensorflow as tf
 
 from src.processing.grad_cam import generate_gradcam
@@ -31,9 +31,16 @@ def test_gradcam_invalid_layer_raises_error():
     mock_model = Mock(spec=tf.keras.Model)
     mock_model.get_layer.side_effect = ValueError("Layer not found")
 
+    # Configurar mock layers para que sea iterable
+    mock_layer1 = Mock()
+    mock_layer1.name = "conv1"
+    mock_layer2 = Mock()
+    mock_layer2.name = "conv2"
+    mock_model.layers = [mock_layer1, mock_layer2]
+
     dummy_img = np.ones((1, 512, 512, 1), dtype=np.float32)
 
-    with pytest.raises(ValueError, match="Layer .* not found"):
+    with pytest.raises(ValueError, match="Capa .* no encontrada"):
         generate_gradcam(mock_model, dummy_img, "invalid_layer")
 
 

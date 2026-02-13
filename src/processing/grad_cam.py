@@ -63,24 +63,20 @@ def generate_gradcam(
             f"Capas disponibles: {[layer.name for layer in model.layers]}"
         )
 
-
     grad_model = tf.keras.Model(
         inputs=model.inputs, outputs=[model.output, last_conv_layer.output]
     )
 
-
     with tf.GradientTape() as tape:
-  
+
         tf_img = tf.convert_to_tensor(img_array, dtype=tf.float32)
 
         raw_model_output, last_conv_layer_output = grad_model(tf_img)
-
 
         if isinstance(raw_model_output, list):
             model_output_tensor = raw_model_output[0]
         else:
             model_output_tensor = raw_model_output
-
 
         tape.watch(model_output_tensor)
 
@@ -118,9 +114,9 @@ def generate_gradcam(
     if img_resized.dtype != np.uint8:
         img_resized = np.uint8(img_resized)
 
-    if len(img_resized.shape) == 2:  
+    if len(img_resized.shape) == 2:
         img_bgr = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2BGR)
-    else: 
+    else:
         img_bgr = cv2.cvtColor(img_resized, cv2.COLOR_RGB2BGR)
 
     superimposed_img = cv2.addWeighted(heatmap, alpha, img_bgr, 1 - alpha, 0)

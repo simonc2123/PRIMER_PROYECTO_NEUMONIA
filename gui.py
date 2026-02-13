@@ -3,11 +3,9 @@
 
 
 import csv
-import os
 from datetime import datetime
 from tkinter import (
     END,
-    Entry,
     StringVar,
     Text,
     Tk,
@@ -17,8 +15,6 @@ from tkinter import (
 )
 from tkinter.messagebox import askokcancel, showinfo, WARNING
 
-
-import numpy as np
 from PIL import Image, ImageTk
 import tkcap
 
@@ -27,12 +23,11 @@ from src.integration.integrator import predict_pneumonia
 from src.processing.read_img import read_image
 from pathlib import Path
 
-
 # Configuración de directorios de salida
-OUTPUT_DIR = Path('outputs')
-HEATMAP_DIR = OUTPUT_DIR / 'heatmaps'
-REPORTS_DIR = OUTPUT_DIR / 'reports'
-HISTORIAL_FILE = OUTPUT_DIR / 'historial.csv'
+OUTPUT_DIR = Path("outputs")
+HEATMAP_DIR = OUTPUT_DIR / "heatmaps"
+REPORTS_DIR = OUTPUT_DIR / "reports"
+HISTORIAL_FILE = OUTPUT_DIR / "historial.csv"
 
 # Crear directorios si no existen
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -66,9 +61,7 @@ class App:
         self.root.geometry("815x560")
         self.root.resizable(0, 0)
 
-        self.lab1 = ttk.Label(
-            self.root, text="Imagen Radiográfica", font=fonti
-        )
+        self.lab1 = ttk.Label(self.root, text="Imagen Radiográfica", font=fonti)
         self.lab2 = ttk.Label(self.root, text="Imagen con Heatmap", font=fonti)
         self.lab3 = ttk.Label(self.root, text="Resultado:", font=fonti)
         self.lab4 = ttk.Label(self.root, text="Cédula Paciente:", font=fonti)
@@ -100,12 +93,8 @@ class App:
         self.button2 = ttk.Button(
             self.root, text="Cargar Imagen", command=self.load_img_file
         )
-        self.button3 = ttk.Button(
-            self.root, text="Borrar", command=self.delete
-        )
-        self.button4 = ttk.Button(
-            self.root, text="PDF", command=self.create_pdf
-        )
+        self.button3 = ttk.Button(self.root, text="Borrar", command=self.delete)
+        self.button4 = ttk.Button(self.root, text="PDF", command=self.create_pdf)
         self.button6 = ttk.Button(
             self.root, text="Guardar", command=self.save_results_csv
         )

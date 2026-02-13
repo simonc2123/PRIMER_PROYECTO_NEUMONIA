@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from PIL import Image
 
 from src.processing.read_img import read_dicom_file, read_jpg_file, read_image
@@ -16,9 +16,7 @@ def test_read_dicom_returns_correct_types():
         mock_data.pixel_array = np.ones((512, 512), dtype=np.uint16)
         mock_dcm.return_value = mock_data
 
-        with patch(
-            "src.processing.read_img.os.path.exists", return_value=True
-        ):
+        with patch("src.processing.read_img.os.path.exists", return_value=True):
             array, pil_img = read_dicom_file("test.dcm")
 
         # Verificar tipos
@@ -38,9 +36,7 @@ def test_read_jpg_returns_correct_types():
     with patch("src.processing.read_img.cv2.imread") as mock_cv:
         mock_cv.return_value = np.ones((512, 512, 3), dtype=np.uint8)
 
-        with patch(
-            "src.processing.read_img.os.path.exists", return_value=True
-        ):
+        with patch("src.processing.read_img.os.path.exists", return_value=True):
             array, pil_img = read_jpg_file("test.jpg")
 
         assert isinstance(array, np.ndarray)
