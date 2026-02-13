@@ -51,6 +51,7 @@ env/
 
 # Carpeta de salidas (outputs) - ignorar contenido pero mantener estructura
 outputs/**/*
+!imagenes/.gitkeep
 !outputs/.gitkeep
 !outputs/README.md
 !outputs/heatmaps/.gitkeep

@@ -23,9 +23,6 @@ def test_gradcam_output_shape():
     # Para esta prueba, omitiremos la ejecución real
     # En un escenario real, necesitarías simulación más compleja
     # Esta es una estructura de prueba de marcador de posición
-
-    # Probar que la función se puede llamar
-    # (La prueba completa requiere más simulación de TensorFlow)
     pass
 
 

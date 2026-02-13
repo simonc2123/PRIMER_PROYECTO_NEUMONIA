@@ -1,0 +1,20 @@
+# Dependencias principales
+numpy==1.26.4
+pillow==12.1.0
+
+# TensorFlow y ML
+tensorflow==2.16.2
+keras==3.13.2
+h5py==3.15.1
+
+# Procesamiento de imágenes
+opencv-python-headless==4.11.0.86
+pydicom==3.0.1
+
+# API Flask
+flask==3.1.0
+flask-cors==5.0.0
+werkzeug==3.1.5
+
+# Utilidades
+requests==2.32.5
