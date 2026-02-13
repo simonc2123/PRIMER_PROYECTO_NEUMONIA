@@ -1,0 +1,46 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tests
+tests/__pycache__/
+
+# Git
+.git/
+.gitignore
+
+# Documentación
+*.md
+LICENSE
+
+# Archivos temporales
+*.log
+*.csv
+*.pdf
+*.png
+historial.csv
+Reporte_*.pdf
+Reporte_*.jpg
+
+# Mantener solo archivos necesarios
+!static/
+!src/
+!*.h5
+!requirements.txt
+!api.py
+!gui.py

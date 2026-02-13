@@ -48,9 +48,37 @@ env/
 # Archivos temporales
 *.log
 *.csv
-*.pdf
-Reporte*.jpg
+
+# Carpeta de salidas (outputs) - ignorar contenido pero mantener estructura
+outputs/**/*
+!outputs/.gitkeep
+!outputs/README.md
+!outputs/heatmaps/.gitkeep
+!outputs/reports/.gitkeep
+
+# Modelos de Machine Learning
+*.h5
+*.hdf5
+
+# Reportes generados por la aplicación
+Reporte_*.jpg
+Reporte_*.pdf
 historial.csv
+
+# Datos de pacientes
+DICOM/
+JPG/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+.tox/
 
 # Modelos grandes
 *.hdf5
