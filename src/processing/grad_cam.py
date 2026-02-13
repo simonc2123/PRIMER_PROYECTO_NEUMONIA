@@ -1,4 +1,4 @@
-"""Module for generating Grad-CAM heatmaps."""
+"""Módulo para generar mapas de calor Grad-CAM."""
 
 from typing import Optional
 
@@ -10,34 +10,42 @@ import tensorflow as tf
 def generate_gradcam(
     model: tf.keras.Model,
     img_array: np.ndarray,
-    last_conv_layer_name: str = 'conv10_thisone'
+    last_conv_layer_name: str = "conv10_thisone",
+    original_img: Optional[np.ndarray] = None,
+    alpha: float = 0.4,
 ) -> np.ndarray:
     """
-    Generate Grad-CAM heatmap for explaining model predictions.
-    
-    Grad-CAM (Gradient-weighted Class Activation Mapping) produces
-    visual explanations for CNN decisions by highlighting important
-    regions in the input image.
-    
+    Generar mapa de calor Grad-CAM para explicar predicciones del modelo.
+
+    Grad-CAM (Mapeo de Activación de Clase Ponderado por Gradiente)
+    produce explicaciones visuales para decisiones de CNN resaltando
+    regiones importantes en la imagen de entrada.
+
     Parameters
     ----------
     model : tf.keras.Model
-        Trained CNN model
+        Modelo CNN entrenado
     img_array : np.ndarray
-        Preprocessed image array with shape (1, H, W, 1)
+        Array de imagen preprocesado con forma (1, H, W, 1)
     last_conv_layer_name : str, optional
-        Name of the last convolutional layer (default: 'conv10_thisone')
-        
+        Nombre de la última capa convolucional (por defecto: 'conv10_thisone')
+    original_img : np.ndarray, optional
+        Imagen RGB original para superponer el mapa de calor (H, W, 3)
+        Si es None, devuelve solo el mapa de calor
+    alpha : float, optional
+        Opacidad de la superposición del mapa de calor (0.0 a 1.0, por defecto: 0.4)
+        Valores más altos hacen el mapa de calor más visible
+
     Returns
     -------
     np.ndarray
-        RGB heatmap superimposed on original image (512, 512, 3)
-        
+        Mapa de calor RGB superpuesto en imagen original (512, 512, 3)
+
     Raises
     ------
     ValueError
-        If specified layer is not found in the model
-        
+        Si la capa especificada no se encuentra en el modelo
+
     Examples
     --------
     >>> from src.models.load_model import get_model
@@ -45,92 +53,75 @@ def generate_gradcam(
     >>> processed_img = preprocess_image(img)
     >>> heatmap = generate_gradcam(model, processed_img)
     >>> cv2.imwrite('gradcam.jpg', heatmap)
-    
-    Notes
-    -----
-    The heatmap uses the JET colormap where:
-    - Red/Yellow: High importance regions
-    - Blue/Purple: Low importance regions
-    
-    References
-    ----------
-    Selvaraju et al., "Grad-CAM: Visual Explanations from Deep
-    Networks via Gradient-based Localization", ICCV 2017
     """
-    # Get the convolutional layer
+
     try:
         last_conv_layer = model.get_layer(last_conv_layer_name)
     except ValueError:
         raise ValueError(
-            f"Layer '{last_conv_layer_name}' not found in model. "
-            f"Available layers: {[layer.name for layer in model.layers]}"
+            f"Capa '{last_conv_layer_name}' no encontrada en el modelo. "
+            f"Capas disponibles: {[layer.name for layer in model.layers]}"
         )
-    
-    # Create gradient model
+
+
     grad_model = tf.keras.Model(
-        inputs=model.inputs,
-        outputs=[model.output, last_conv_layer.output]
+        inputs=model.inputs, outputs=[model.output, last_conv_layer.output]
     )
-    
-    # Compute gradients
+
+
     with tf.GradientTape() as tape:
-        # Convert to tensor
+  
         tf_img = tf.convert_to_tensor(img_array, dtype=tf.float32)
-        
-        # Get model outputs
+
         raw_model_output, last_conv_layer_output = grad_model(tf_img)
-        
-        # Handle list output
+
+
         if isinstance(raw_model_output, list):
             model_output_tensor = raw_model_output[0]
         else:
             model_output_tensor = raw_model_output
-        
-        # Watch the output
+
+
         tape.watch(model_output_tensor)
-        
-        # Get predicted class
+
         predicted_class_idx = tf.argmax(model_output_tensor[0])
-        
-        # Get class output
+
         class_channel_output = tf.gather(
-            model_output_tensor, 
-            indices=predicted_class_idx, 
-            axis=1
+            model_output_tensor, indices=predicted_class_idx, axis=1
         )
-    
-    # Compute gradients
+
     grads = tape.gradient(class_channel_output, last_conv_layer_output)
-    
-    # Pool gradients
+
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    
-    # Weight feature maps
+
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.squeeze(heatmap)
-    
-    # Normalize heatmap
+
     heatmap = tf.maximum(heatmap, 0)
     max_heatmap = tf.reduce_max(heatmap)
     if max_heatmap == 0:
         heatmap = heatmap
     else:
         heatmap /= max_heatmap
-    
-    # Convert to numpy and resize
+
     heatmap = cv2.resize(heatmap.numpy(), (512, 512))
     heatmap = np.uint8(255 * heatmap)
-    
-    # Apply colormap
+
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-    
-    # Superimpose on original (assuming original is in img_array)
-    # Note: This needs the original image, not preprocessed
-    # For now, we'll create a placeholder
-    # In real use, pass original image separately
-    transparency = heatmap * 0.8
-    transparency = transparency.astype(np.uint8)
-    
-    # Return RGB (convert BGR to RGB)
-    return heatmap[:, :, ::-1]
+
+    if original_img is None:
+        return heatmap[:, :, ::-1]
+
+    img_resized = cv2.resize(original_img, (512, 512))
+
+    if img_resized.dtype != np.uint8:
+        img_resized = np.uint8(img_resized)
+
+    if len(img_resized.shape) == 2:  
+        img_bgr = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2BGR)
+    else: 
+        img_bgr = cv2.cvtColor(img_resized, cv2.COLOR_RGB2BGR)
+
+    superimposed_img = cv2.addWeighted(heatmap, alpha, img_bgr, 1 - alpha, 0)
+    return superimposed_img[:, :, ::-1]

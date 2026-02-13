@@ -1,4 +1,4 @@
-"""Integration layer for combining processing steps."""
+"""Capa de integración para combinar pasos de procesamiento."""
 
 from .integrator import predict_pneumonia
 
