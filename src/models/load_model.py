@@ -17,7 +17,8 @@ class ModelLoader:
         _model: Modelo cargado
     """
 
-    _instance = Optional["ModelLoader"] = None
+    _instance: Optional["ModelLoader"] = None
+    _current_path: Optional[str] = None
     _model: Optional[tf.keras.Model] = None
 
     def __new__(cls):
@@ -52,27 +53,27 @@ class ModelLoader:
         if self._model is None or self._current_path != model_path:
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"El archivo del modelo no se encuentra en la ruta: {model_path}")
-            self._model = tf.keras.models.load_model(model_path)
+            self._model = tf.keras.models.load_model(model_path, compile=False)
             self._current_path = model_path
         return self._model
     
     
-    def get_model(model_path: str = "conv_MLP_84.h5") -> tf.keras.Model:
-        """
-        Funcion de conveniencia para acceder al modelo cargado
+def get_model(model_path: str = "conv_MLP_84.h5") -> tf.keras.Model:
+    """
+    Funcion de conveniencia para acceder al modelo cargado
 
-        Parametros:
-            model_path: str, opcional
-                Ruta al archivo .h5 del modelo pre-entrenado. Por defecto es "conv_MLP_84.h5"
+    Parametros:
+        model_path: str, opcional
+            Ruta al archivo .h5 del modelo pre-entrenado. Por defecto es "conv_MLP_84.h5"
 
-        Retorna:
-            tf.keras.Model: 
-                Modelo cargado listo para ser utilizado
+    Retorna:
+        tf.keras.Model: 
+            Modelo cargado listo para ser utilizado
 
-        Ejemplo de uso:
-            loader = ModelLoader()
-            predictions = model.predict(img_batch)
-        """
-
+    Ejemplo de uso:
         loader = ModelLoader()
-        return loader.load_model(model_path)
+        predictions = model.predict(img_batch)
+    """
+
+    loader = ModelLoader()
+    return loader.load_model(model_path)
