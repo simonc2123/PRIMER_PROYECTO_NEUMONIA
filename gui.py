@@ -34,6 +34,17 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 HEATMAP_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 
+# Paleta de colores profesional
+COLOR_PRIMARY = "#1e3a8a"      # Azul oscuro profesional
+COLOR_SECONDARY = "#3b82f6"    # Azul más claro
+COLOR_SUCCESS = "#10b981"      # Verde
+COLOR_WARNING = "#f59e0b"      # Naranja
+COLOR_DANGER = "#ef4444"       # Rojo
+COLOR_BG = "#f8fafc"           # Fondo claro
+COLOR_CARD = "#ffffff"         # Blanco para tarjetas
+COLOR_TEXT = "#1f2937"         # Texto oscuro
+COLOR_BORDER = "#e2e8f0"       # Borde gris claro
+
 
 class App:
     """
@@ -55,72 +66,280 @@ class App:
         """Inicializar la aplicación GUI."""
         self.root = Tk()
         self.root.title("Herramienta para la detección rápida de neumonía")
-
-        fonti = font.Font(weight="bold")
-
-        self.root.geometry("815x560")
+        self.root.geometry("900x680")
         self.root.resizable(0, 0)
+        self.root.configure(bg=COLOR_BG)
 
-        self.lab1 = ttk.Label(self.root, text="Imagen Radiográfica", font=fonti)
-        self.lab2 = ttk.Label(self.root, text="Imagen con Heatmap", font=fonti)
-        self.lab3 = ttk.Label(self.root, text="Resultado:", font=fonti)
-        self.lab4 = ttk.Label(self.root, text="Cédula Paciente:", font=fonti)
-        self.lab5 = ttk.Label(
-            self.root,
-            text="SOFTWARE PARA EL APOYO AL DIAGNÓSTICO MÉDICO DE NEUMONÍA",
-            font=fonti,
+        # Configurar estilo ttk
+        self._setup_styles()
+
+        # Header/Título principal
+        header_frame = ttk.Frame(self.root, style="Header.TFrame")
+        header_frame.place(x=0, y=0, width=900, height=70)
+
+        title_font = font.Font(family="Segoe UI", size=16, weight="bold")
+        title_label = ttk.Label(
+            header_frame,
+            text="🏥 DETECTOR DE NEUMONÍA - Apoyo al Diagnóstico Médico",
+            font=title_font,
+            style="Header.TLabel"
         )
-        self.lab6 = ttk.Label(self.root, text="Probabilidad:", font=fonti)
+        title_label.pack(pady=15)
+
+        # Frame principal con dos columnas
+        main_frame = ttk.Frame(self.root, style="Main.TFrame")
+        main_frame.place(x=15, y=80, width=870, height=570)
+
+        # Columna izquierda (Imagen original)
+        left_frame = ttk.LabelFrame(
+            main_frame,
+            text="📋 Imagen Radiográfica Original",
+            style="Card.TLabelframe"
+        )
+        left_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+        self.text_img1 = Text(
+            left_frame,
+            width=31,
+            height=15,
+            bg=COLOR_CARD,
+            bd=0,
+            relief="flat",
+            state="disabled"
+        )
+        self.text_img1.pack(pady=10, padx=10)
+
+        # Columna derecha (Heatmap)
+        right_frame = ttk.LabelFrame(
+            main_frame,
+            text="🔥 Mapa de Calor (Grad-CAM)",
+            style="Card.TLabelframe"
+        )
+        right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+
+        self.text_img2 = Text(
+            right_frame,
+            width=31,
+            height=15,
+            bg=COLOR_CARD,
+            bd=0,
+            relief="flat",
+            state="disabled"
+        )
+        self.text_img2.pack(pady=10, padx=10)
+
+        # Frame para información del paciente y resultados
+        info_frame = ttk.LabelFrame(
+            self.root,
+            text="📊 Información del Paciente y Resultados",
+            style="Card.TLabelframe"
+        )
+        info_frame.place(x=15, y=470, width=870, height=120)
+
+        # Fila 1: Cédula del paciente
+        cedula_label = ttk.Label(
+            info_frame,
+            text="Cédula del Paciente:",
+            style="Bold.TLabel"
+        )
+        cedula_label.grid(row=0, column=0, padx=15, pady=10, sticky="w")
 
         self.ID = StringVar()
-        self.result = StringVar()
+        self.text1 = ttk.Entry(info_frame, textvariable=self.ID, width=20)
+        self.text1.grid(row=0, column=1, padx=15, pady=10, sticky="w")
 
-        self.text1 = ttk.Entry(self.root, textvariable=self.ID, width=10)
+        result_label = ttk.Label(
+            info_frame,
+            text="Resultado:",
+            style="Bold.TLabel"
+        )
+        result_label.grid(row=0, column=2, padx=15, pady=10, sticky="w")
 
-        self.ID_content = self.text1.get()
+        self.text2 = Text(info_frame, width=15, height=1, bg=COLOR_CARD, bd=1, relief="solid", state="disabled")
+        self.text2.grid(row=0, column=3, padx=10, pady=10, sticky="ew")
 
-        self.text_img1 = Text(self.root, width=31, height=15)
-        self.text_img2 = Text(self.root, width=31, height=15)
-        self.text2 = Text(self.root)
-        self.text3 = Text(self.root)
+        # Fila 2: Probabilidad
+        proba_label = ttk.Label(
+            info_frame,
+            text="Probabilidad:",
+            style="Bold.TLabel"
+        )
+        proba_label.grid(row=1, column=0, padx=15, pady=10, sticky="w")
+
+        self.text3 = Text(info_frame, width=15, height=1, bg=COLOR_CARD, bd=1, relief="solid", state="disabled")
+        self.text3.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+
+        # Frame para botones
+        button_frame = ttk.Frame(self.root, style="Main.TFrame")
+        button_frame.place(x=15, y=595, width=870, height=70)
+
+        # Botones con colores y estilos mejorados
+        self.button2 = ttk.Button(
+            button_frame,
+            text="📂 Cargar Imagen",
+            command=self.load_img_file,
+            style="Primary.TButton"
+        )
+        self.button2.grid(row=0, column=0, padx=8, pady=10)
 
         self.button1 = ttk.Button(
-            self.root,
-            text="Predecir",
+            button_frame,
+            text="🔍 Predecir",
             state="disabled",
             command=self.run_model,
+            style="Success.TButton"
         )
-        self.button2 = ttk.Button(
-            self.root, text="Cargar Imagen", command=self.load_img_file
-        )
-        self.button3 = ttk.Button(self.root, text="Borrar", command=self.delete)
-        self.button4 = ttk.Button(self.root, text="PDF", command=self.create_pdf)
-        self.button6 = ttk.Button(
-            self.root, text="Guardar", command=self.save_results_csv
-        )
+        self.button1.grid(row=0, column=1, padx=8, pady=10)
 
-        self.lab1.place(x=110, y=65)
-        self.lab2.place(x=545, y=65)
-        self.lab3.place(x=500, y=350)
-        self.lab4.place(x=65, y=350)
-        self.lab5.place(x=122, y=25)
-        self.lab6.place(x=500, y=400)
-        self.button1.place(x=220, y=460)
-        self.button2.place(x=70, y=460)
-        self.button3.place(x=670, y=460)
-        self.button4.place(x=520, y=460)
-        self.button6.place(x=370, y=460)
-        self.text1.place(x=200, y=350)
-        self.text2.place(x=610, y=350, width=90, height=30)
-        self.text3.place(x=610, y=400, width=90, height=30)
-        self.text_img1.place(x=65, y=90)
-        self.text_img2.place(x=500, y=90)
+        self.button6 = ttk.Button(
+            button_frame,
+            text="💾 Guardar CSV",
+            command=self.save_results_csv,
+            style="Info.TButton"
+        )
+        self.button6.grid(row=0, column=2, padx=8, pady=10)
+
+        self.button4 = ttk.Button(
+            button_frame,
+            text="📄 Generar PDF",
+            command=self.create_pdf,
+            style="Warning.TButton"
+        )
+        self.button4.grid(row=0, column=3, padx=8, pady=10)
+
+        self.button3 = ttk.Button(
+            button_frame,
+            text="🗑️  Limpiar",
+            command=self.delete,
+            style="Danger.TButton"
+        )
+        self.button3.grid(row=0, column=4, padx=8, pady=10)
 
         self.text1.focus_set()
-
         self.array = None
+        self.result = StringVar()
+        self.ID_content = self.text1.get()
+
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=1)
+        info_frame.grid_columnconfigure(3, weight=1)
 
         self.root.mainloop()
+
+    def _setup_styles(self):
+        """Configurar estilos personalizados para ttk."""
+        style = ttk.Style()
+        style.theme_use("clam")
+
+        # Header
+        style.configure(
+            "Header.TFrame",
+            background=COLOR_PRIMARY,
+            relief="flat"
+        )
+        style.configure(
+            "Header.TLabel",
+            background=COLOR_PRIMARY,
+            foreground="white",
+            font=("Segoe UI", 14, "bold")
+        )
+
+        # Main Frame
+        style.configure("Main.TFrame", background=COLOR_BG)
+
+        # LabelFrame (Cards)
+        style.configure(
+            "Card.TLabelframe",
+            background=COLOR_BG,
+            foreground=COLOR_TEXT,
+            borderwidth=2,
+            relief="solid"
+        )
+        style.configure(
+            "Card.TLabelframe.Label",
+            background=COLOR_BG,
+            foreground=COLOR_PRIMARY,
+            font=("Segoe UI", 11, "bold")
+        )
+
+        # Labels
+        style.configure(
+            "Bold.TLabel",
+            background=COLOR_BG,
+            foreground=COLOR_TEXT,
+            font=("Segoe UI", 10, "bold")
+        )
+
+        # Entry
+        style.configure(
+            "TEntry",
+            fieldbackground=COLOR_CARD,
+            background=COLOR_CARD,
+            foreground=COLOR_TEXT,
+            relief="solid",
+            borderwidth=1
+        )
+
+        # Botones primarios
+        style.configure(
+            "Primary.TButton",
+            font=("Segoe UI", 10, "bold"),
+            relief="raised",
+            borderwidth=1
+        )
+        style.map(
+            "Primary.TButton",
+            background=[("active", COLOR_SECONDARY)],
+            foreground=[("active", "white")]
+        )
+
+        # Botones success (verde)
+        style.configure(
+            "Success.TButton",
+            font=("Segoe UI", 10, "bold"),
+            relief="raised",
+            borderwidth=1
+        )
+        style.map(
+            "Success.TButton",
+            background=[("active", "#059669")]
+        )
+
+        # Botones info (azul claro)
+        style.configure(
+            "Info.TButton",
+            font=("Segoe UI", 10, "bold"),
+            relief="raised",
+            borderwidth=1
+        )
+        style.map(
+            "Info.TButton",
+            background=[("active", "#0891b2")]
+        )
+
+        # Botones warning (naranja)
+        style.configure(
+            "Warning.TButton",
+            font=("Segoe UI", 10, "bold"),
+            relief="raised",
+            borderwidth=1
+        )
+        style.map(
+            "Warning.TButton",
+            background=[("active", "#d97706")]
+        )
+
+        # Botones danger (rojo)
+        style.configure(
+            "Danger.TButton",
+            font=("Segoe UI", 10, "bold"),
+            relief="raised",
+            borderwidth=1
+        )
+        style.map(
+            "Danger.TButton",
+            background=[("active", "#dc2626")]
+        )
 
     def load_img_file(self):
         """
@@ -130,7 +349,7 @@ class App:
         """
         filepath = filedialog.askopenfilename(
             initialdir="/",
-            title="Select image",
+            title="Seleccionar imagen radiográfica",
             filetypes=(
                 ("DICOM", "*.dcm"),
                 ("JPEG", "*.jpeg"),
@@ -146,11 +365,13 @@ class App:
                 # Mostrar imagen
                 self.img1 = img2show.resize((250, 250), Image.LANCZOS)
                 self.img1 = ImageTk.PhotoImage(self.img1)
+                self.text_img1.config(state="normal")
                 self.text_img1.image_create(END, image=self.img1)
+                self.text_img1.config(state="disabled")
                 self.button1["state"] = "enabled"
 
             except ValueError as e:
-                showinfo(title="Error de Archivo", message=str(e))
+                showinfo(title="❌ Error de Archivo", message=str(e))
 
     def run_model(self):
         """
@@ -166,11 +387,18 @@ class App:
         self.img2 = Image.fromarray(self.heatmap)
         self.img2 = self.img2.resize((250, 250), Image.LANCZOS)
         self.img2 = ImageTk.PhotoImage(self.img2)
+        self.text_img2.config(state="normal")
         self.text_img2.image_create(END, image=self.img2)
+        self.text_img2.config(state="disabled")
 
-        # Mostrar resultados
+        # Mostrar resultados (habilitar escritura temporal)
+        self.text2.config(state="normal")
         self.text2.insert(END, self.label)
+        self.text2.config(state="disabled")
+        
+        self.text3.config(state="normal")
         self.text3.insert(END, "{:.2f}".format(self.proba) + "%")
+        self.text3.config(state="disabled")
 
     def save_results_csv(self):
         """Guardar resultados del paciente en archivo CSV."""
@@ -186,7 +414,7 @@ class App:
                 ]
             )
             showinfo(
-                title="Guardar",
+                title="✅ Guardar",
                 message="Los datos se guardaron con éxito.",
             )
 
@@ -196,7 +424,7 @@ class App:
 
         if not cedula:
             showinfo(
-                title="Error",
+                title="⚠️  Error",
                 message="Por favor, ingresa la cédula del paciente.",
             )
             return
@@ -216,23 +444,36 @@ class App:
         img = Image.open(str(jpg_filename))
         img = img.convert("RGB")
         img.save(str(pdf_filename))
-        showinfo(title="PDF", message="El PDF fue generado con éxito.")
+        showinfo(title="✅ PDF", message="El PDF fue generado con éxito.")
 
     def delete(self):
         """Limpiar todos los datos de la GUI."""
         answer = askokcancel(
-            title="Confirmación",
+            title="⚠️  Confirmación",
             message="Se borrarán todos los datos.",
             icon=WARNING,
         )
         if answer:
             self.text1.delete(0, "end")
+            
+            self.text2.config(state="normal")
             self.text2.delete(1.0, "end")
+            self.text2.config(state="disabled")
+            
+            self.text3.config(state="normal")
             self.text3.delete(1.0, "end")
+            self.text3.config(state="disabled")
+            
+            self.text_img1.config(state="normal")
             self.text_img1.delete(1.0, "end")
+            self.text_img1.config(state="disabled")
+            
+            self.text_img2.config(state="normal")
             self.text_img2.delete(1.0, "end")
+            self.text_img2.config(state="disabled")
+            
             showinfo(
-                title="Borrar",
+                title="✅ Limpiar",
                 message="Los datos se borraron con éxito",
             )
 
