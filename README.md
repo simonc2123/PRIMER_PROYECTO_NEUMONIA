@@ -46,7 +46,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clonar e instalar
-git clone <tu-repositorio>
+git clone https://github.com/ahidalgodev/compunube.git
 cd PRIMER_PROYECTO_NEUMONIA
 uv sync
 ```
