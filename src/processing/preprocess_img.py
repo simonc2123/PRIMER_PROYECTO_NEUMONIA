@@ -13,7 +13,7 @@ def preprocess_image(
     Preprocesamos el arreglo de una imagen para que pueda ser ingresada al modelo.
 
     Aplica estas transformaciones:
-    1. Redimensiona la imagne al tamaño objetivo (default 512x512).
+    1. Redimensiona la imagen al tamaño objetivo (default 512x512).
     2. Convierte a escala de grises.
     3. Aplica ecualización de histograma CLAHE.
     4. Normaliza los valores de píxeles al rango [0, 1].
