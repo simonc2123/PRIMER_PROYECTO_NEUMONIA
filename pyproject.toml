@@ -1,17 +1,19 @@
 [project]
 name = "uao-neumonia"
 version = "0.1.0"
-description = "Add your description here"
+description = "Sistema de Detección de Neumonía con Deep Learning - CLI/Docker"
 requires-python = ">=3.12"
 dependencies = [
-    "img2pdf>=0.6.3",
-    "matplotlib>=3.10.8",
     "opencv-python>=4.11.0.86",
     "pandas>=2.3.3",
     "pillow>=12.1.0",
-    "pyautogui>=0.9.54",
     "pydicom>=3.0.1",
-    "python-xlib>=0.33",
+    "reportlab>=4.4.10",
     "tensorflow==2.16.2",
+    # Opcional para API
+    "flask>=3.1.0",
+    "flask-cors>=5.0.0",
+    "tensorflow-intel>=2.16.2",
+    "pytest>=9.0.2",
     "tkcap>=0.0.4",
 ]

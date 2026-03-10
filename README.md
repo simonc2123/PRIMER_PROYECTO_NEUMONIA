@@ -1,105 +1,256 @@
-## Hola! Bienvenido a la herramienta para la detección rápida de neumonía
+# Sistema de Detección de Neumonía con Deep Learning
 
-Deep Learning aplicado en el procesamiento de imágenes radiográficas de tórax en formato DICOM con el fin de clasificarlas en 3 categorías diferentes:
+![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)
+![TensorFlow](https://img.shields.io/badge/tensorflow-2.16+-orange.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-1. Neumonía Bacteriana
+Sistema de apoyo al diagnóstico médico que utiliza Deep Learning para clasificar radiografías de tórax (DICOM/JPG/PNG) en tres categorías: **Neumonía Bacteriana**, **Neumonía Viral** o **Sin Neumonía**.
 
-2. Neumonía Viral
-
-3. Sin Neumonía
-
-Aplicación de una técnica de explicación llamada Grad-CAM para resaltar con un mapa de calor las regiones relevantes de la imagen de entrada.
+Se realizó la reestructuración completa del sistema, se refactorizó el código que originalmente era un Monolito, y se transformó en módulos, además se agregaron dos interfaces más además de la GUI original, para poder usarlo en Docker por medio de CLI y API.
 
 ---
 
-## Uso de la herramienta:
+## Estructura del Proyecto
 
-A continuación le explicaremos cómo empezar a utilizarla.
+```
+PRIMER_PROYECTO_NEUMONIA/
+├── src/                 # Módulos principales (models, processing, integration)
+├── outputs/             # Archivos generados
+│   ├── heatmaps/        # Mapas de calor Grad-CAM
+│   ├── reports/         # Reportes PDF
+│   └── historial.csv    # Registro de análisis
+├── tests/               # Pruebas unitarias
+├── gui.py               # Interfaz gráfica (PRINCIPAL)
+├── cli.py               # Interfaz línea de comandos (PRINCIPAL)
+├── api.py               # API REST (opcional)
+├── static/              # Interfaz web para API (opcional)
+└── conv_MLP_84.h5       # Modelo CNN pre-entrenado
+```
 
-Requerimientos necesarios para el funcionamiento:
-
-- Instale Anaconda para Windows siguiendo las siguientes instrucciones:
-  https://docs.anaconda.com/anaconda/install/windows/
-
-- Abra Anaconda Prompt y ejecute las siguientes instrucciones:
-
-  conda create -n tf tensorflow
-
-  conda activate tf
-
-  cd UAO-Neumonia
-
-  pip install -r requirements.txt
-
-  python detector_neumonia.py
-
-Uso de la Interfaz Gráfica:
-
-- Ingrese la cédula del paciente en la caja de texto
-- Presione el botón 'Cargar Imagen', seleccione la imagen del explorador de archivos del computador (Imagenes de prueba en https://drive.google.com/drive/folders/1WOuL0wdVC6aojy8IfssHcqZ4Up14dy0g?usp=drive_link)
-- Presione el botón 'Predecir' y espere unos segundos hasta que observe los resultados
-- Presione el botón 'Guardar' para almacenar la información del paciente en un archivo excel con extensión .csv
-- Presione el botón 'PDF' para descargar un archivo PDF con la información desplegada en la interfaz
-- Presión el botón 'Borrar' si desea cargar una nueva imagen
+**Carpeta `outputs/`:** Ambas interfaces (GUI y CLI) guardan aquí:
+- `heatmaps/` - Mapas de calor Grad-CAM (.jpg)
+- `reports/` - Reportes PDF generados
+- `historial.csv` - Registro histórico de análisis
 
 ---
 
-## Arquitectura de archivos propuesta.
+## Instalación
 
-## detector_neumonia.py
+### Con uv (Recomendado)
 
-Contiene el diseño de la interfaz gráfica utilizando Tkinter.
+```bash
+# Instalar uv
+# Windows:
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+# Linux/macOS:
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-Los botones llaman métodos contenidos en otros scripts.
+# Clonar e instalar
+git clone https://github.com/simonc2123/PRIMER_PROYECTO_NEUMONIA.git
+cd PRIMER_PROYECTO_NEUMONIA
+uv sync
+```
 
-## integrator.py
-
-Es un módulo que integra los demás scripts y retorna solamente lo necesario para ser visualizado en la interfaz gráfica.
-Retorna la clase, la probabilidad y una imagen el mapa de calor generado por Grad-CAM.
-
-## read_img.py
-
-Script que lee la imagen en formato DICOM para visualizarla en la interfaz gráfica. Además, la convierte a arreglo para su preprocesamiento.
-
-## preprocess_img.py
-
-Script que recibe el arreglo proveniento de read_img.py, realiza las siguientes modificaciones:
-
-- resize a 512x512
-- conversión a escala de grises
-- ecualización del histograma con CLAHE
-- normalización de la imagen entre 0 y 1
-- conversión del arreglo de imagen a formato de batch (tensor)
-
-## load_model.py
-
-Script que lee el archivo binario del modelo de red neuronal convolucional previamente entrenado llamado 'WilhemNet86.h5'.
-
-## grad_cam.py
-
-Script que recibe la imagen y la procesa, carga el modelo, obtiene la predicción y la capa convolucional de interés para obtener las características relevantes de la imagen.
+**Archivos de dependencias:**
+- `pyproject.toml` - Dependencias principales (optimizado)
+- `uv.lock` - Lockfile con versiones exactas  
+- `requirements-docker.txt` - Dependencias mínimas para Docker
 
 ---
 
-## Acerca del Modelo
+## Uso
 
-La red neuronal convolucional implementada (CNN) es basada en el modelo implementado por F. Pasa, V.Golkov, F. Pfeifer, D. Cremers & D. Pfeifer
-en su artículo Efcient Deep Network Architectures for Fast Chest X-Ray Tuberculosis Screening and Visualization.
+### GUI (Interfaz Gráfica) - Principal
 
-Está compuesta por 5 bloques convolucionales, cada uno contiene 3 convoluciones; dos secuenciales y una conexión 'skip' que evita el desvanecimiento del gradiente a medida que se avanza en profundidad.
-Con 16, 32, 48, 64 y 80 filtros de 3x3 para cada bloque respectivamente.
+Interfaz visual para uso clínico interactivo.
 
-Después de cada bloque convolucional se encuentra una capa de max pooling y después de la última una capa de Average Pooling seguida por tres capas fully-connected (Dense) de 1024, 1024 y 3 neuronas respectivamente.
+```bash
+uv run gui.py
+```
 
-Para regularizar el modelo utilizamos 3 capas de Dropout al 20%; dos en los bloques 4 y 5 conv y otra después de la 1ra capa Dense.
+**Funcionalidades:**
+- ✅ Cargar imagen (DICOM/JPG/PNG)
+- ✅ Realizar predicción con Grad-CAM
+- ✅ Guardar heatmap en outputs/heatmaps/
+- ✅ Guardar resultados en outputs/historial.csv
+- ✅ Generar reporte PDF en outputs/reports/
 
-## Acerca de Grad-CAM
+---
 
-Es una técnica utilizada para resaltar las regiones de una imagen que son importantes para la clasificación. Un mapeo de activaciones de clase para una categoría en particular indica las regiones de imagen relevantes utilizadas por la CNN para identificar esa categoría.
+### CLI (Línea de Comandos) - Principal
 
-Grad-CAM realiza el cálculo del gradiente de la salida correspondiente a la clase a visualizar con respecto a las neuronas de una cierta capa de la CNN. Esto permite tener información de la importancia de cada neurona en el proceso de decisión de esa clase en particular. Una vez obtenidos estos pesos, se realiza una combinación lineal entre el mapa de activaciones de la capa y los pesos, de esta manera, se captura la importancia del mapa de activaciones para la clase en particular y se ve reflejado en la imagen de entrada como un mapa de calor con intensidades más altas en aquellas regiones relevantes para la red con las que clasificó la imagen en cierta categoría.
+Interfaz de terminal con **modo interactivo** (ideal para Docker) y análisis directo.
 
-## Proyecto original realizado por:
+**Modo Interactivo (Recomendado para Docker):**
+```bash
+python cli.py -i
+```
+Menú interactivo que replica toda la funcionalidad de la GUI:
+- Analizar imágenes paso a paso
+- Ver y limpiar historial
+- Opciones de guardado personalizables
 
-Isabella Torres Revelo - https://github.com/isa-tr
-Nicolas Diaz Salazar - https://github.com/nicolasdiazsalazar
+**Análisis Directo:**
+```bash
+# Uso básico
+python cli.py imagen.dcm
+
+# Con todas las opciones (equivalente a GUI)
+python cli.py imagen.jpg -p 123456789 --heatmap --csv --pdf
+
+# Ver ayuda
+python cli.py --help
+```
+
+**Opciones:**
+- `-i, --interactive` - Modo interactivo (menú en terminal)
+- `-p, --paciente ID` - Cédula del paciente
+- `--heatmap` - Guardar mapa de calor en outputs/heatmaps/
+- `--csv` - Guardar en outputs/historial.csv
+- `--pdf` - Generar reporte PDF en outputs/reports/
+
+**Funcionalidades (mismo que GUI):**
+- ✅ Análisis de imagen individual
+- ✅ Mostrar diagnóstico y confianza
+- ✅ Guardar heatmap
+- ✅ Guardar en historial CSV
+- ✅ Generar reporte PDF
+
+---
+
+### Docker (Despliegue)
+
+Containerización para despliegue del sistema usando CLI interactivo.
+
+**Pre-requisitos:**
+- Docker Desktop instalado y **ejecutándose** 
+- Verificar con: `docker --version`
+- Si no funciona → **Problema común**: Docker no está en PATH
+
+**Solución rápida para PATH (Windows):**
+```powershell
+# Agregar Docker al PATH permanentemente
+$env:PATH += ";C:\Program Files\Docker\Docker\resources\bin"
+```
+O configurar manualmente: `Este equipo > Propiedades > Variables de entorno > Path > Nuevo`
+Agregar: `C:\Program Files\Docker\Docker\resources\bin`
+
+**Construir imagen:**
+```bash
+docker build -t neumonia-cli .
+```
+
+**Ejecutar CLI interactivo:**
+```bash
+# Windows - Con volúmenes para persistir datos
+docker run -it --rm -v "${PWD}\imagenes:/app/imagenes" -v "${PWD}\outputs:/app/outputs" neumonia-cli
+
+# Linux/Mac - Con volúmenes para persistir datos  
+docker run -it --rm -v "./imagenes:/app/imagenes" -v "./outputs:/app/outputs" neumonia-cli
+
+# Ejecución básica (sin persistir archivos)
+docker run -it --rm neumonia-cli
+```
+
+**Con docker-compose:**
+```bash
+# Solo CLI interactivo
+docker compose run --rm cli
+
+# API (opcional)
+docker compose up api
+```
+
+**Estructura en contenedor:**
+- `/app/` - Código fuente
+- `/app/imagenes/` - Montaje para imágenes de entrada  
+- `/app/outputs/` - Montaje para archivos generados
+- **Punto de entrada:** `python cli.py -i` (modo interactivo)
+
+---
+
+### API REST (Opcional)
+
+Interfaz web para integración con sistemas externos.
+
+```bash
+uv run api.py
+```
+
+Abre http://localhost:5000 para interfaz web.
+
+**Endpoints:**
+- `GET /` - Interfaz web
+- `POST /predict` - Predicción (JSON)
+- `POST /predict-with-heatmap` - Predicción + imagen
+
+**Docker (opcional):**
+```bash
+# Iniciar API
+docker-compose --profile api up -d
+
+# Iniciar CLI en contenedor
+docker-compose --profile cli run --rm cli /data/imagen.dcm
+```
+
+---
+
+## Pruebas
+
+Las pruebas unitarias se ejecutan con **pytest**, un framework de testing robusto y flexible para Python que permite escribir tests concisos y expresivos.
+
+**Recursos:**
+- [Documentación oficial de pytest](https://docs.pytest.org/)
+- [Guía de inicio rápido](https://docs.pytest.org/en/stable/getting-started.html)
+
+**Características principales:**
+- Sintaxis simple con funciones `test_*`
+- Fixtures para configuración y limpieza
+- Cobertura de código con `pytest-cov`
+- Ejecución paralela y reportes detallados
+
+**Ejecutar pruebas:**
+
+```bash
+uv pip install pytest pytest-cov
+uv run pytest tests/ -v
+```
+
+---
+
+## Modelo
+
+**Arquitectura:** CNN basada en F. Pasa et al. (2019)
+
+- 5 bloques convolucionales con skip connections
+- Filtros: 16, 32, 48, 64, 80 (kernels 3x3)
+- FC: 1024 → 1024 → 3
+- Precisión: 84% en validación
+
+**Grad-CAM:** Visualización de regiones relevantes para la clasificación.
+
+---
+
+## Licencia
+
+MIT License - Ver [LICENSE](LICENSE) para detalles.
+✅ Distribución  
+✅ Uso privado
+
+---
+
+## Agradecimientos
+
+Proyecto original desarrollado por:
+- **Isabella Torres Revelo** - [GitHub](https://github.com/isa-tr)
+- **Nicolas Diaz Salazar** - [GitHub](https://github.com/nicolasdiazsalazar)
+
+---
+
+##  Referencias
+
+- Pasa, F., et al. (2019). "Efficient Deep Network Architectures for Fast Chest X-Ray Tuberculosis Screening and Visualization"
+- Selvaraju, R. R., et al. (2017). "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization"
+- Dataset: [Chest X-Ray Images (Pneumonia)](https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia)
+
+---

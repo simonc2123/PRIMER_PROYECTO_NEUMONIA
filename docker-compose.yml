@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # CLI Interactivo (principal)
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neumonia-cli
+    volumes:
+      - ./imagenes:/app/imagenes      # Montar carpeta local de imágenes
+      - ./outputs:/app/outputs        # Persistir archivos generados
+    stdin_open: true  
+    tty: true         
+
+  # API REST (opcional)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neumonia-api
+    command: python api.py         
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/uploads      
+      - ./outputs:/app/outputs      
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+    profiles:
+      - api                       
+
+volumes:
+  imagenes: {}
+  outputs: {}
+  uploads: {}

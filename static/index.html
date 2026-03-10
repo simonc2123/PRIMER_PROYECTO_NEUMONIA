@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Detección de Neumonía</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- jsPDF and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+
+        .upload-area.dragover {
+            background: #e7e9ff;
+            border-color: #667eea;
+            transform: scale(1.02);
+        }
+
+        .image-preview {
+            height: 400px;
+            width: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+            background: white;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .gradient-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .result-badge {
+            font-size: 1.2rem;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="text-center mb-5">
+            <h1 class="display-4 text-primary mb-2">
+                <i class="bi bi-heart-pulse-fill"></i> Detección de Neumonía
+            </h1>
+            <p class="lead text-muted">Sistema de apoyo al diagnóstico médico con Deep Learning</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div id="uploadSection" class="upload-area mb-4">
+            <i class="bi bi-cloud-arrow-up display-1 text-primary mb-3"></i>
+            <h4>Arrastra una imagen aquí o haz clic para seleccionar</h4>
+            <p class="text-muted">Formatos soportados: DICOM (.dcm), JPEG (.jpg), PNG (.png)</p>
+            <input type="file" id="fileInput" accept=".dcm,.jpg,.jpeg,.png" class="d-none">
+        </div>
+
+        <!-- Patient Info -->
+        <div id="patientInfo" class="mb-4" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="patientId" class="form-label fw-bold">
+                        <i class="bi bi-person-badge"></i> Cédula del Paciente
+                    </label>
+                    <input type="text" class="form-control" id="patientId" placeholder="Ingrese cédula del paciente">
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div id="previewSection" style="display: none;">
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="bi bi-image"></i> Imagen Original</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <img id="originalImage" class="image-preview" alt="Imagen original">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="bi bi-fire"></i> Mapa de Calor Grad-CAM</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <img id="heatmapImage" class="image-preview" alt="Mapa de calor">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button class="btn btn-primary btn-lg gradient-btn me-2" id="predictBtn">
+                    <i class="bi bi-search"></i> Realizar Predicción
+                </button>
+                <button class="btn btn-secondary btn-lg me-2" id="clearBtn">
+                    <i class="bi bi-trash"></i> Limpiar
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="text-center py-5" style="display: none;">
+            <div class="spinner-border text-primary" style="width: 4rem; height: 4rem;" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-3 fs-5">Analizando radiografía...</p>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorAlert" class="alert alert-danger alert-dismissible fade show mt-4" role="alert" style="display: none;">
+            <i class="bi bi-exclamation-triangle-fill"></i> <span id="errorMessage"></span>
+            <button type="button" class="btn-close" onclick="document.getElementById('errorAlert').style.display='none'"></button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="bi bi-clipboard-data"></i> Resultados del Análisis</h4>
+                </div>
+                <div class="card-body" id="resultContent">
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="text-center p-4 bg-light rounded">
+                                <p class="text-muted mb-2">Diagnóstico</p>
+                                <h3 id="resultLabel" class="mb-0">-</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-4 bg-light rounded">
+                                <p class="text-muted mb-2">Probabilidad</p>
+                                <h3 id="resultProbability" class="mb-0">-</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-4 bg-light rounded">
+                                <p class="text-muted mb-2">Fecha y Hora</p>
+                                <h5 id="resultTimestamp" class="mb-0">-</h5>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button class="btn btn-success btn-lg me-2" id="saveCSVBtn">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Guardar CSV
+                        </button>
+                        <button class="btn btn-danger btn-lg me-2" id="generatePDFBtn">
+                            <i class="bi bi-file-earmark-pdf"></i> Generar PDF
+                        </button>
+                        <button class="btn btn-primary btn-lg gradient-btn" id="newAnalysisBtn">
+                            <i class="bi bi-arrow-repeat"></i> Nuevo Análisis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let selectedFile = null;
+        let currentResult = null;
+
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+        const patientInfo = document.getElementById('patientInfo');
+        const previewSection = document.getElementById('previewSection');
+        const originalImage = document.getElementById('originalImage');
+        const heatmapImage = document.getElementById('heatmapImage');
+        const predictBtn = document.getElementById('predictBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loading = document.getElementById('loading');
+        const errorAlert = document.getElementById('errorAlert');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultSection = document.getElementById('resultSection');
+        const newAnalysisBtn = document.getElementById('newAnalysisBtn');
+        const saveCSVBtn = document.getElementById('saveCSVBtn');
+        const generatePDFBtn = document.getElementById('generatePDFBtn');
+
+        // Upload area events
+        uploadSection.addEventListener('click', () => fileInput.click());
+
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImage.src = e.target.result;
+                heatmapImage.src = '';
+                previewSection.style.display = 'block';
+                patientInfo.style.display = 'block';
+                uploadSection.style.display = 'none';
+                resultSection.style.display = 'none';
+                errorAlert.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Predict
+        predictBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            loading.style.display = 'block';
+            predictBtn.disabled = true;
+            errorAlert.style.display = 'none';
+            resultSection.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+
+                // Get prediction
+                const response = await fetch(`${API_URL}/predict`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('Error en la predicción');
+
+                const result = await response.json();
+                currentResult = {
+                    ...result,
+                    cedula: document.getElementById('patientId').value || 'N/A'
+                };
+
+                // Get heatmap
+                const heatmapResponse = await fetch(`${API_URL}/predict-with-heatmap`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (heatmapResponse.ok) {
+                    const blob = await heatmapResponse.blob();
+                    heatmapImage.src = URL.createObjectURL(blob);
+                }
+
+                displayResults(result);
+
+            } catch (err) {
+                showError('Error al procesar la imagen: ' + err.message);
+            } finally {
+                loading.style.display = 'none';
+                predictBtn.disabled = false;
+            }
+        });
+
+        function displayResults(result) {
+            const labelElement = document.getElementById('resultLabel');
+            const probabilityElement = document.getElementById('resultProbability');
+            const timestampElement = document.getElementById('resultTimestamp');
+
+            labelElement.textContent = result.diagnostico;
+            
+            // Color-code diagnosis
+            labelElement.className = 'mb-0';
+            if (result.label === 'bacteriana') {
+                labelElement.classList.add('text-danger');
+            } else if (result.label === 'viral') {
+                labelElement.classList.add('text-warning');
+            } else {
+                labelElement.classList.add('text-success');
+            }
+            
+            probabilityElement.textContent = result.probabilidad + '%';
+            timestampElement.textContent = new Date(result.timestamp).toLocaleString('es-ES');
+
+            resultSection.style.display = 'block';
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorAlert.style.display = 'block';
+        }
+
+        // Save to CSV
+        saveCSVBtn.addEventListener('click', () => {
+            if (!currentResult) return;
+
+            const csvContent = `Fecha-Hora,Cedula,Diagnostico,Probabilidad\n${currentResult.timestamp},${currentResult.cedula},${currentResult.diagnostico},${currentResult.probabilidad}%`;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historial_${currentResult.cedula}_${new Date().getTime()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert('✅ CSV guardado exitosamente');
+        });
+
+        // Generate PDF
+        generatePDFBtn.addEventListener('click', async () => {
+            if (!currentResult) return;
+
+            const cedula = currentResult.cedula;
+            if (!cedula || cedula === 'N/A') {
+                alert('⚠️ Por favor, ingresa la cédula del paciente');
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Add header
+                pdf.setFontSize(20);
+                pdf.setTextColor(102, 126, 234);
+                pdf.text('REPORTE DE DIAGNÓSTICO - NEUMONÍA', 105, 15, { align: 'center' });
+                
+                pdf.setFontSize(11);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`Cédula Paciente: ${cedula}`, 10, 25);
+                pdf.text(`Fecha: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`, 10, 31);
+                
+                let yPosition = 40;
+                
+                // Add original image
+                const originalCanvas = await html2canvas(originalImage, {
+                    scale: 1,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+                const originalImgData = originalCanvas.toDataURL('image/jpeg', 0.9);
+                const imgWidth = 85;
+                const imgHeight = 70;
+                
+                pdf.setFontSize(12);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text('Imagen Original:', 10, yPosition);
+                pdf.addImage(originalImgData, 'JPEG', 10, yPosition + 5, imgWidth, imgHeight);
+                
+                // Add heatmap image
+                if (heatmapImage.src) {
+                    pdf.text('Mapa de Calor Grad-CAM:', 110, yPosition);
+                    const heatmapCanvas = await html2canvas(heatmapImage, {
+                        scale: 1,
+                        backgroundColor: '#ffffff',
+                        logging: false
+                    });
+                    const heatmapImgData = heatmapCanvas.toDataURL('image/jpeg', 0.9);
+                    pdf.addImage(heatmapImgData, 'JPEG', 110, yPosition + 5, imgWidth, imgHeight);
+                }
+                
+                yPosition += imgHeight + 15;
+                
+                // Add separator line
+                pdf.setDrawColor(200, 200, 200);
+                pdf.line(10, yPosition, 200, yPosition);
+                yPosition += 10;
+                
+                // Add results section
+                pdf.setFontSize(14);
+                pdf.setTextColor(102, 126, 234);
+                pdf.text('RESULTADOS DEL ANÁLISIS', 105, yPosition, { align: 'center' });
+                yPosition += 10;
+                
+                // Add diagnosis box
+                pdf.setFillColor(245, 245, 245);
+                pdf.rect(10, yPosition, 190, 25, 'F');
+                
+                pdf.setFontSize(11);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text('Diagnóstico:', 15, yPosition + 8);
+                
+                pdf.setFontSize(14);
+                if (currentResult.label === 'bacteriana') {
+                    pdf.setTextColor(220, 53, 69);
+                } else if (currentResult.label === 'viral') {
+                    pdf.setTextColor(253, 126, 20);
+                } else {
+                    pdf.setTextColor(40, 167, 69);
+                }
+                pdf.text(currentResult.diagnostico, 15, yPosition + 18);
+                
+                yPosition += 30;
+                
+                // Add probability box
+                pdf.setFillColor(245, 245, 245);
+                pdf.rect(10, yPosition, 190, 15, 'F');
+                
+                pdf.setFontSize(11);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text('Probabilidad:', 15, yPosition + 6);
+                
+                pdf.setFontSize(13);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`${currentResult.probabilidad}%`, 15, yPosition + 12);
+                
+                yPosition += 20;
+                
+                // Add timestamp
+                pdf.setFontSize(10);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Fecha y Hora del Análisis: ${new Date(currentResult.timestamp).toLocaleString('es-ES')}`, 15, yPosition);
+                
+                // Add disclaimer
+                yPosition = 270;
+                pdf.setFontSize(9);
+                pdf.setTextColor(150, 150, 150);
+                pdf.text('NOTA: Este resultado es un apoyo al diagnóstico médico. La decisión final debe ser tomada por un profesional de la salud.', 105, yPosition, { align: 'center', maxWidth: 180 });
+                
+                // Add footer
+                pdf.setFontSize(10);
+                pdf.setTextColor(128, 128, 128);
+                pdf.text('Sistema de Apoyo al Diagnóstico Médico con Deep Learning', 105, 285, { align: 'center' });
+                
+                // Save PDF
+                pdf.save(`Reporte_${cedula}_${new Date().getTime()}.pdf`);
+                
+                alert('✅ PDF generado exitosamente con imágenes y resultados');
+            } catch (err) {
+                showError('Error al generar PDF: ' + err.message);
+            }
+        });
+
+        // Clear/Reset
+        clearBtn.addEventListener('click', reset);
+        newAnalysisBtn.addEventListener('click', reset);
+
+        function reset() {
+            selectedFile = null;
+            currentResult = null;
+            fileInput.value = '';
+            uploadSection.style.display = 'block';
+            previewSection.style.display = 'none';
+            patientInfo.style.display = 'none';
+            resultSection.style.display = 'none';
+            errorAlert.style.display = 'none';
+            document.getElementById('patientId').value = '';
+        }
+
+        // Check API health
+        async function checkAPI() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                if (!response.ok) {
+                    showError('⚠️ No se puede conectar con la API. Asegúrate de que esté ejecutándose en http://localhost:5000');
+                }
+            } catch (err) {
+                showError('⚠️ No se puede conectar con la API. Ejecuta: uv run api.py');
+            }
+        }
+
+        checkAPI();
+    </script>
+</body>
+</html>
