@@ -40,11 +40,8 @@ install-dependencies:
   before_script:
     - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
   script:
-    - echo "Instalando dependencias desde uv.lock..."
-    - uv sync --frozen
-    - echo "Verificando importaciones principales..."
+    - make install
     - uv run python -c "import numpy, cv2, flask; print('Dependencias OK')"
-    - echo "Build completado."
   artifacts:
     paths:
       - .venv/
@@ -56,9 +53,7 @@ lint:
   stage: test
   needs: [install-dependencies]
   script:
-    - echo "Analizando calidad del código con flake8..."
-    - uvx flake8 src/ tests/ api.py cli.py --max-line-length=100 --exclude=__pycache__,.git,.venv --statistics
-    - echo "Sin problemas de lint."
+    - make lint
 
 unit-tests:
   extends: .base
@@ -67,9 +62,7 @@ unit-tests:
   before_script:
     - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
   script:
-    - echo "Ejecutando pruebas unitarias con pytest..."
-    - uv run pytest tests/ -v --tb=short --ignore=tests/test_grad_cam.py
-    - echo "Pruebas completadas."
+    - make test
   # test_grad_cam.py se ignora porque requiere el modelo entrenado (.h5/.keras),
   # que no se versiona en el repositorio.
   coverage: '/TOTAL.*\s+(\d+%)$/'
@@ -91,11 +84,8 @@ build-docker:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - echo "Construyendo imagen Docker..."
     - docker build -t "$DOCKER_IMAGE" -t "$DOCKER_IMAGE_LATEST" .
-    - echo "Publicando imagen en el registro de GitLab..."
     - docker push "$DOCKER_IMAGE"
     - docker push "$DOCKER_IMAGE_LATEST"
-    - echo "Imagen disponible en $DOCKER_IMAGE"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"'
