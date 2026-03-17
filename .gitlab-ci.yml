@@ -2,7 +2,7 @@
 # Integrado con GitHub mediante espejo de repositorio en GitLab.
 #
 # Etapas:
-#   1. build  → instala dependencias y verifica el entorno
+#   1. build  → instala dependencias con uv y verifica el entorno
 #   2. test   → lint de código + pruebas unitarias con pytest
 #   3. deploy → construye y publica la imagen Docker en el registro de GitLab
 
@@ -13,71 +13,59 @@ stages:
 
 # ─── Variables globales ────────────────────────────────────────────────────────
 variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
   DOCKER_IMAGE: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
   DOCKER_IMAGE_LATEST: "$CI_REGISTRY_IMAGE:latest"
 
-# Cache de dependencias pip entre jobs del mismo pipeline
-.pip_cache: &pip_cache
+# Plantilla reutilizable: cache de uv + librerías del sistema para opencv
+.base:
   cache:
     key: "$CI_COMMIT_REF_SLUG"
     paths:
-      - .cache/pip
-      - venv/
+      - .cache/uv
+      - .venv/
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
+    - pip install uv --quiet
 
 # ─── STAGE: build ─────────────────────────────────────────────────────────────
 install-dependencies:
+  extends: .base
   stage: build
   image: python:3.12-slim
-  <<: *pip_cache
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
-    - python -m venv venv
-    - source venv/bin/activate
-    - pip install --upgrade pip --quiet
   script:
-    - echo "Instalando dependencias del proyecto..."
-    - pip install --quiet -r requirements-docker.txt
-    - pip install --quiet pytest flake8
+    - echo "Instalando dependencias desde uv.lock..."
+    - uv sync --frozen
     - echo "Verificando importaciones principales..."
-    - python -c "import numpy, cv2, flask; print('Dependencias OK')"
+    - uv run python -c "import numpy, cv2, flask; print('Dependencias OK')"
     - echo "Build completado."
   artifacts:
     paths:
-      - venv/
+      - .venv/
     expire_in: 1 hour
 
 # ─── STAGE: test ──────────────────────────────────────────────────────────────
 lint:
+  extends: .base
   stage: test
   image: python:3.12-slim
-  <<: *pip_cache
   needs: [install-dependencies]
-  before_script:
-    - source venv/bin/activate
   script:
     - echo "Analizando calidad del código con flake8..."
-    - flake8 src/ tests/ api.py cli.py
-      --max-line-length=100
-      --exclude=__pycache__,.git,venv
-      --statistics
+    - uvx flake8 src/ tests/ api.py cli.py --max-line-length=100 --exclude=__pycache__,.git,.venv --statistics
     - echo "Sin problemas de lint."
 
 unit-tests:
+  extends: .base
   stage: test
   image: python:3.12-slim
-  <<: *pip_cache
   needs: [install-dependencies]
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
-    - source venv/bin/activate
   script:
     - echo "Ejecutando pruebas unitarias con pytest..."
-    - pytest tests/ -v --tb=short --ignore=tests/test_grad_cam.py
+    - uv run pytest tests/ -v --tb=short --ignore=tests/test_grad_cam.py
     - echo "Pruebas completadas."
   # test_grad_cam.py se ignora porque requiere el modelo entrenado (.h5/.keras),
-  # que no se versiona en el repositorio. Agrégalo como artefacto o variable
-  # de CI si deseas incluirlo en el pipeline.
+  # que no se versiona en el repositorio.
   coverage: '/TOTAL.*\s+(\d+%)$/'
   artifacts:
     when: always
@@ -102,7 +90,6 @@ build-docker:
     - echo "Publicando imagen en el registro de GitLab..."
     - docker push "$DOCKER_IMAGE"
     - docker push "$DOCKER_IMAGE_LATEST"
-    - echo "Imagen disponible en: $DOCKER_IMAGE"
+    - echo "Imagen disponible en $DOCKER_IMAGE"
   rules:
-    # Solo ejecutar en la rama main/master y cuando hay cambios reales
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"'
