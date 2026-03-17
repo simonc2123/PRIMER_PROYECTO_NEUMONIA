@@ -1,0 +1,101 @@
+# Pipeline CI/CD - Sistema de Detección de Neumonía
+# Integrado con GitHub mediante espejo de repositorio en GitLab.
+#
+# Etapas:
+#   1. build  → instala dependencias con uv y verifica el entorno
+#   2. test   → lint de código + pruebas unitarias con pytest
+#   3. deploy → construye y publica la imagen Docker en el registro de GitLab
+
+stages:
+  - build
+  - test
+  - deploy
+
+# ─── Variables globales ────────────────────────────────────────────────────────
+variables:
+  UV_VERSION: "0.10.9"
+  PYTHON_VERSION: "3.12"
+  BASE_LAYER: trixie-slim
+  UV_LINK_MODE: copy          # Requerido en runners basados en Docker
+  UV_CACHE_DIR: .uv-cache
+  DOCKER_IMAGE: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+  DOCKER_IMAGE_LATEST: "$CI_REGISTRY_IMAGE:latest"
+
+# Plantilla reutilizable: imagen uv oficial + cache basado en uv.lock
+.base:
+  image: ghcr.io/astral-sh/uv:$UV_VERSION-python$PYTHON_VERSION-$BASE_LAYER
+  cache:
+    - key:
+        files:
+          - uv.lock
+      paths:
+        - $UV_CACHE_DIR
+  after_script:
+    - uv cache prune --ci
+
+# ─── STAGE: build ─────────────────────────────────────────────────────────────
+install-dependencies:
+  extends: .base
+  stage: build
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
+  script:
+    - echo "Instalando dependencias desde uv.lock..."
+    - uv sync --frozen
+    - echo "Verificando importaciones principales..."
+    - uv run python -c "import numpy, cv2, flask; print('Dependencias OK')"
+    - echo "Build completado."
+  artifacts:
+    paths:
+      - .venv/
+    expire_in: 1 hour
+
+# ─── STAGE: test ──────────────────────────────────────────────────────────────
+lint:
+  extends: .base
+  stage: test
+  needs: [install-dependencies]
+  script:
+    - echo "Analizando calidad del código con flake8..."
+    - uvx flake8 src/ tests/ api.py cli.py --max-line-length=100 --exclude=__pycache__,.git,.venv --statistics
+    - echo "Sin problemas de lint."
+
+unit-tests:
+  extends: .base
+  stage: test
+  needs: [install-dependencies]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
+  script:
+    - echo "Ejecutando pruebas unitarias con pytest..."
+    - uv run pytest tests/ -v --tb=short --ignore=tests/test_grad_cam.py
+    - echo "Pruebas completadas."
+  # test_grad_cam.py se ignora porque requiere el modelo entrenado (.h5/.keras),
+  # que no se versiona en el repositorio.
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    expire_in: 1 week
+
+# ─── STAGE: deploy ────────────────────────────────────────────────────────────
+build-docker:
+  stage: deploy
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs: [lint, unit-tests]
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - echo "Construyendo imagen Docker..."
+    - docker build -t "$DOCKER_IMAGE" -t "$DOCKER_IMAGE_LATEST" .
+    - echo "Publicando imagen en el registro de GitLab..."
+    - docker push "$DOCKER_IMAGE"
+    - docker push "$DOCKER_IMAGE_LATEST"
+    - echo "Imagen disponible en $DOCKER_IMAGE"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"'

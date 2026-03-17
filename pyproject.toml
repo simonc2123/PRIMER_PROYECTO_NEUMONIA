@@ -13,7 +13,7 @@ dependencies = [
     # Opcional para API
     "flask>=3.1.0",
     "flask-cors>=5.0.0",
-    "tensorflow-intel>=2.16.2",
+    "tensorflow-intel>=2.16.2; sys_platform == 'win32'",
     "pytest>=9.0.2",
     "tkcap>=0.0.4",
 ]
