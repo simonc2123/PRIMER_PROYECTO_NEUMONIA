@@ -13,26 +13,32 @@ stages:
 
 # ─── Variables globales ────────────────────────────────────────────────────────
 variables:
-  UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+  UV_VERSION: "0.10.9"
+  PYTHON_VERSION: "3.12"
+  BASE_LAYER: trixie-slim
+  UV_LINK_MODE: copy          # Requerido en runners basados en Docker
+  UV_CACHE_DIR: .uv-cache
   DOCKER_IMAGE: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
   DOCKER_IMAGE_LATEST: "$CI_REGISTRY_IMAGE:latest"
 
-# Plantilla reutilizable: cache de uv + librerías del sistema para opencv
+# Plantilla reutilizable: imagen uv oficial + cache basado en uv.lock
 .base:
+  image: ghcr.io/astral-sh/uv:$UV_VERSION-python$PYTHON_VERSION-$BASE_LAYER
   cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - .cache/uv
-      - .venv/
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
-    - pip install uv --quiet
+    - key:
+        files:
+          - uv.lock
+      paths:
+        - $UV_CACHE_DIR
+  after_script:
+    - uv cache prune --ci
 
 # ─── STAGE: build ─────────────────────────────────────────────────────────────
 install-dependencies:
   extends: .base
   stage: build
-  image: python:3.12-slim
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
   script:
     - echo "Instalando dependencias desde uv.lock..."
     - uv sync --frozen
@@ -48,7 +54,6 @@ install-dependencies:
 lint:
   extends: .base
   stage: test
-  image: python:3.12-slim
   needs: [install-dependencies]
   script:
     - echo "Analizando calidad del código con flake8..."
@@ -58,8 +63,9 @@ lint:
 unit-tests:
   extends: .base
   stage: test
-  image: python:3.12-slim
   needs: [install-dependencies]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libgl1 libglib2.0-0 > /dev/null
   script:
     - echo "Ejecutando pruebas unitarias con pytest..."
     - uv run pytest tests/ -v --tb=short --ignore=tests/test_grad_cam.py
